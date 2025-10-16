@@ -1,0 +1,102 @@
+version: "3.9"
+
+# Development override configuration
+# This file extends docker-compose.yml with development-specific settings
+# Run with: docker-compose up
+
+services:
+  orchestrator:
+    volumes:
+      # Mount source code for live reloading
+      - ./orchestrator:/app
+      # Override read-only mounts with writable ones for development
+      - ./agents:/app/agents
+      - ./prompts:/app/prompts
+      - ./configs:/app/configs
+      - ./orchestrator/static:/app/static
+      # Development logs
+      - ./logs:/app/logs
+    environment:
+      # Enable debug mode
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    # Expose debug port if needed
+    ports:
+      - "18080:8080"
+      - "5679:5679"  # Debug port
+
+  n8n:
+    volumes:
+      # Mount n8n flows for development
+      - ./n8n:/home/node/.n8n
+    environment:
+      # Enable development mode
+      - NODE_ENV=development
+      - N8N_LOG_LEVEL=debug
+      # Disable basic auth for development
+      - N8N_BASIC_AUTH_ACTIVE=false
+    ports:
+      - "5678:5678"
+
+  redis:
+    # Use simpler config for development
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"  # Expose Redis port for direct access
+
+  qdrant:
+    ports:
+      - "6333:6333"  # Expose Qdrant port for direct access
+
+  prometheus:
+    ports:
+      - "9090:9090"  # Expose Prometheus port for direct access
+    volumes:
+      # Add additional prometheus config for development
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+
+  grafana:
+    ports:
+      - "3000:3000"  # Expose Grafana port for direct access
+    environment:
+      # Use default credentials for development
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # Enable debug mode
+      - GF_LOG_LEVEL=debug
+    volumes:
+      # Mount additional dashboards for development
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+
+# Add development tools
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: blue-swarm-redis-commander
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - blue-swarm-internal
+    depends_on:
+      - redis
+
+  # Add a simple web-based file browser for development
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: blue-swarm-filebrowser
+    restart: unless-stopped
+    volumes:
+      - .:/srv
+      - filebrowser_data:/database
+    ports:
+      - "8082:80"
+    networks:
+      - blue-swarm-frontend
+    command: --noauth --root /srv
+
+volumes:
+  filebrowser_data:
+    driver: local

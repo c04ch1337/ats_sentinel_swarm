@@ -1,61 +1,217 @@
 version: "3.9"
+
+# Custom networks for security
+networks:
+  blue-swarm-internal:
+    driver: bridge
+    internal: true
+  blue-swarm-frontend:
+    driver: bridge
+
 services:
   orchestrator:
-    build: ./orchestrator
+    build: 
+      context: ./orchestrator
+      dockerfile: Dockerfile
     container_name: blue-swarm-orchestrator
     env_file: .env
-    depends_on: [redis, qdrant, prometheus]
+    restart: unless-stopped
+    depends_on: 
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
     volumes:
       - ./agents:/app/agents:ro
       - ./prompts:/app/prompts:ro
       - ./configs:/app/configs:ro
       - ./orchestrator/static:/app/static:ro
-      - ./uploads:/app/uploads
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
     ports: ["18080:8080"]
+    networks:
+      - blue-swarm-internal
+      - blue-swarm-frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   n8n:
     image: n8nio/n8n:latest
     container_name: blue-swarm-n8n
     env_file: .env
+    restart: unless-stopped
     environment:
       - N8N_HOST=${N8N_HOST:-localhost}
       - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Chicago}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-password}
     ports: ["5678:5678"]
-    depends_on: [redis]
+    depends_on: 
+      redis:
+        condition: service_healthy
     volumes:
-      - ./n8n:/home/node/.n8n
+      - n8n_data:/home/node/.n8n
+    networks:
+      - blue-swarm-internal
+      - blue-swarm-frontend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   redis:
     image: redis:7-alpine
     container_name: blue-swarm-redis
-    ports: ["6379:6379"]
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redis_data:/data
+    networks:
+      - blue-swarm-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   qdrant:
     image: qdrant/qdrant:latest
     container_name: blue-swarm-qdrant
-    ports: ["6333:6333"]
-    volumes: [qdrant_storage:/qdrant/storage]
+    restart: unless-stopped
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - blue-swarm-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   prometheus:
     image: prom/prometheus:latest
     container_name: blue-swarm-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports: ["9090:9090"]
+      - prometheus_data:/prometheus
+    networks:
+      - blue-swarm-internal
+      - blue-swarm-frontend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   grafana:
     image: grafana/grafana:latest
     container_name: blue-swarm-grafana
+    restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
+      - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["3000:3000"]
-    depends_on: [prometheus]
+    networks:
+      - blue-swarm-internal
+      - blue-swarm-frontend
+    depends_on: 
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
+# Named volumes for persistence
 volumes:
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
+    driver: local
   qdrant_storage:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
