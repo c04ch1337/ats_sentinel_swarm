@@ -1,0 +1,16 @@
+agents:
+  - id: Aegis-Lead
+    name: Aegis-Lead
+    purpose: SOC lead, triage conductor
+    tools: [jira, qdrant, redis]
+    prompt: ../prompts/system/aegis_lead.md
+  - id: Z-Gate
+    name: Z-Gate
+    purpose: ZPA policy analyst & diff-caller
+    tools: [zpa, jira, qdrant]
+    prompt: ../prompts/system/z_gate.md
+  - id: Blue-Sentry
+    name: Blue-Sentry
+    purpose: SIEM ingest + correlation shepherd
+    tools: [idr, jira]
+    prompt: ../prompts/system/blue_sentry.md

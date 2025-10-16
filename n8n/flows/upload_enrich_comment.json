@@ -1,0 +1,45 @@
+{
+  "name": "Upload \u2192 Unified Enrichment \u2192 JIRA comment",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "upload-enrich",
+        "methods": [
+          "POST"
+        ]
+      },
+      "id": "w1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "url": "http://orchestrator:8080/enrich/unified_comment",
+        "sendBody": true,
+        "specifyBody": true,
+        "bodyParametersJson": "{\"paths\": \"={{$json.paths}}\", \"jira_issue_key\": \"={{$json.issueKey}}\", \"create_comment\": true }"
+      },
+      "id": "http1",
+      "name": "Enrich",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

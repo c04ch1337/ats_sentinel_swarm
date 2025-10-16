@@ -1,0 +1,45 @@
+{
+  "name": "IDR notable \u2192 JIRA comment (demo)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "idr-pull",
+        "methods": [
+          "POST"
+        ]
+      },
+      "id": "webhook1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "url": "http://orchestrator:8080/idr/notables/pull",
+        "sendBody": true,
+        "specifyBody": true,
+        "bodyParametersJson": "{\"since\":\"={{$json.since}}\",\"limit\":50,\"create_jira\":false}"
+      },
+      "id": "http1",
+      "name": "PullNotables",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "PullNotables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

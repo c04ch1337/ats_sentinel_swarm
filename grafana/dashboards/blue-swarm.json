@@ -1,0 +1,142 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "HTTP Requests / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_requests_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p50/p90/p99",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(blue_swarm_request_latency_seconds_bucket[5m])) by (le))"
+        },
+        {
+          "expr": "histogram_quantile(0.9, sum(rate(blue_swarm_request_latency_seconds_bucket[5m])) by (le))"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(blue_swarm_request_latency_seconds_bucket[5m])) by (le))"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Files Analyzed / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_files_analyzed_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "IOCs Found / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_iocs_found_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "ZPA Diffs / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_zpa_diffs_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "ZPA Enforce Attempts / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_zpa_enforce_attempts_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Unified Enrich Attempts / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_enrich_attempts_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Enrich Comments Posted / s",
+      "targets": [
+        {
+          "expr": "rate(blue_swarm_enrich_comments_total[1m])"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "",
+  "title": "Blue Swarm Ops"
+}

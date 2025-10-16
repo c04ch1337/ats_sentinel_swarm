@@ -1,0 +1,6 @@
+project_key: SEC
+default_issue_type: Task
+default_labels: [BLUE-SWARM, TRIAGE]
+components: [Security]
+priority_map: {critical: Highest, high: High, medium: Medium, low: Low}
+custom_fields: {}

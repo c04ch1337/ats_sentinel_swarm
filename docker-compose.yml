@@ -1,0 +1,61 @@
+version: "3.9"
+services:
+  orchestrator:
+    build: ./orchestrator
+    container_name: blue-swarm-orchestrator
+    env_file: .env
+    depends_on: [redis, qdrant, prometheus]
+    volumes:
+      - ./agents:/app/agents:ro
+      - ./prompts:/app/prompts:ro
+      - ./configs:/app/configs:ro
+      - ./orchestrator/static:/app/static:ro
+      - ./uploads:/app/uploads
+    ports: ["18080:8080"]
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: blue-swarm-n8n
+    env_file: .env
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Chicago}
+    ports: ["5678:5678"]
+    depends_on: [redis]
+    volumes:
+      - ./n8n:/home/node/.n8n
+
+  redis:
+    image: redis:7-alpine
+    container_name: blue-swarm-redis
+    ports: ["6379:6379"]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: blue-swarm-qdrant
+    ports: ["6333:6333"]
+    volumes: [qdrant_storage:/qdrant/storage]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: blue-swarm-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: blue-swarm-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  qdrant_storage:
